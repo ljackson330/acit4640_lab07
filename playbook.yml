@@ -1,0 +1,64 @@
+- name: Configure web servers
+  # Apply this plan to all hosts in the specified inventory
+  hosts: all
+  # Execute commands as a privileged user (root)
+  become: yes
+  tasks:
+    - name: Install nginx
+      # Use package module
+      package:
+        # Control nginx package
+        name: nginx
+        # Make sure it's installed
+        state: present
+    
+    - name: create directory structure for web documents
+      # Use file module
+      file:
+        # Working directory (from files/nginx.conf)
+        path: /web/html/
+        state: directory
+        # chown the directory to www-data (default nginx service account)
+        owner: www-data
+        group: www-data
+        # Restrict write access to file owner
+        mode: '0755'
+
+    - name: copy nginx conf file to server
+      # Use the copy module
+      copy:
+        src: files/nginx.conf
+        dest: /etc/nginx/sites-available/default
+        # chown to root
+        owner: root
+        group: root
+        # No execute, restrict write to file owner
+        mode: '0644'
+        
+    - name: create link to nginx config file to enable it
+      # File module
+      file:
+        # Symlink the configuration from -available to -enabled
+        src: /etc/nginx/sites-available/default
+        dest: /etc/nginx/sites-enabled/default
+        state: link
+        
+    - name: Generate index.html file from template
+      # Use template module to process Jinja2 templates
+      template:
+        src: templates/index.html.j2
+        dest: /web/html/index.html
+        # chown to www-data
+        owner: www-data
+        # no execute, writeable only by owner
+        group: www-data
+        mode: '0644'
+        
+    - name: reload nginx service
+      # Use service module
+      service:
+        name: nginx
+        # Reload the service
+        state: reloaded
+        # Ensure nginx is enabled
+        enabled: yes
